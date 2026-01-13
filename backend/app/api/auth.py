@@ -6,9 +6,16 @@ Endpoints:
 - POST /auth/refresh: rotate refresh token, return new tokens
 - POST /auth/logout: revoke refresh token
 
-Note:
-- v1 stores refresh token hash in memory. Restarting the server invalidates it.
+Persistence:
+- Stores the refresh token hash on disk so sessions survive server restarts.
+  File: <WAYPOINT_STATE_DIR>/refresh.json
 """
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -24,25 +31,55 @@ from app.settings import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+STATE_DIR = Path(os.getenv("WAYPOINT_STATE_DIR", ".waypoint_state")).resolve()
+STATE_FILE = STATE_DIR / "refresh.json"
+
 _refresh_hash: str | None = None
+
+
+def _load_refresh_hash() -> str | None:
+    try:
+        data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        v = data.get("refresh_hash")
+        return v if isinstance(v, str) and v else None
+    except FileNotFoundError:
+        return None
+    except Exception:
+        # If state is corrupted, treat as logged out.
+        return None
+
+
+def _save_refresh_hash(value: str | None) -> None:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    data = {"refresh_hash": value}
+    tmp = STATE_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data), encoding="utf-8")
+    tmp.replace(STATE_FILE)
+
+
+# Load persisted session at import time
+_refresh_hash = _load_refresh_hash()
+
 
 class LoginIn(BaseModel):
     username: str
     password: str
+
 
 class TokenOut(BaseModel):
     access_token: str
     refresh_token: str
     expires_in: int
 
+
 @router.post("/login", response_model=TokenOut)
 def login(data: LoginIn):
     if data.username != settings.username:
-        raise HTTPException(401, "Invalid Credentials")
-    
+        raise HTTPException(401, "Invalid credentials")
+
     if not verify_password(data.password, settings.password_hash):
         raise HTTPException(401, "Invalid credentials")
-    
+
     access = create_access_token(
         subject=settings.username,
         secret=settings.jwt_secret,
@@ -52,6 +89,7 @@ def login(data: LoginIn):
     refresh = make_refresh_token()
     global _refresh_hash
     _refresh_hash = hash_value(refresh)
+    _save_refresh_hash(_refresh_hash)
 
     return TokenOut(
         access_token=access,
@@ -59,15 +97,18 @@ def login(data: LoginIn):
         expires_in=settings.access_ttl_min * 60,
     )
 
+
 class RefreshIn(BaseModel):
     refresh_token: str
+
 
 @router.post("/refresh", response_model=TokenOut)
 def refresh(data: RefreshIn):
     global _refresh_hash
+
     if not _refresh_hash or not verify_hash(data.refresh_token, _refresh_hash):
         raise HTTPException(401, "Invalid refresh token")
-    
+
     access = create_access_token(
         subject=settings.username,
         secret=settings.jwt_secret,
@@ -76,6 +117,7 @@ def refresh(data: RefreshIn):
 
     new_refresh = make_refresh_token()
     _refresh_hash = hash_value(new_refresh)
+    _save_refresh_hash(_refresh_hash)
 
     return TokenOut(
         access_token=access,
@@ -83,8 +125,10 @@ def refresh(data: RefreshIn):
         expires_in=settings.access_ttl_min * 60,
     )
 
+
 @router.post("/logout")
 def logout():
     global _refresh_hash
     _refresh_hash = None
-    return {"ok", True}
+    _save_refresh_hash(None)
+    return {"ok": True}

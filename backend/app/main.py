@@ -30,7 +30,20 @@ from fastapi import FastAPI
 from app.api.router import api_router
 from app.settings import settings
 
+import os
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="Waypoint", version="0.1.0")
+
+allowed = os.getenv("WAYPOINT_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in allowed if o.strip()],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # When the server starts, ensure the allowed root folder exists
 @app.on_event("startup")

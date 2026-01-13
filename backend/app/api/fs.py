@@ -21,9 +21,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Header
 from starlette.responses import FileResponse
 
+from app.core.etag import compute_etag
 from app.core.paths import safe_path
 from app.deps import require_auth
 from app.settings import settings
@@ -39,6 +40,7 @@ def _file_info(p: Path, root: Path) -> dict[str, Any]:
         "is_dir": p.is_dir(),
         "size": st.st_size,
         "mtime": int(st.st_mtime),
+        "etag": compute_etag(p),
     }
 
 @router.get("/list")
@@ -63,6 +65,7 @@ def download(path: str, user: str = Depends(require_auth)):
         path=str(p),
         filename=p.name,
         media_type="application/octet-stream",
+        headers={"ETag": compute_etag(p)},
     )
 
 @router.post("/upload")
@@ -71,8 +74,14 @@ def upload(
     overwrite: bool = False,
     file: UploadFile = File(...),
     user: str = Depends(require_auth),
+    if_match: str | None = Header(default=None, alias="If-Match"),
 ):
     dest = safe_path(settings.remote_root, path)
+
+    if dest.exists() and overwrite and if_match is not None:
+        current = compute_etag(dest)
+        if if_match != current:
+            raise HTTPException(412, "ETag mismatch (file changed)")
 
     if dest.exists() and not overwrite:
         raise HTTPException(409, "File already exists (set overwrite=true to replace)")
