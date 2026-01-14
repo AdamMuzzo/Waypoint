@@ -11,7 +11,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.security import decode_access_token
-from app.settings import settings
+from app.config import settings
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -21,7 +21,7 @@ def require_auth(creds: HTTPAuthorizationCredentials | None = Depends(_bearer),)
     
     token = creds.credentials
     try:
-        payload = decode_access_token(token, settings.jwt_secret)
+        payload = decode_access_token(token, settings.jwt_secret, settings.jwt_alg)
     except Exception:
         raise HTTPException(401, "Invalid or expired token")
     

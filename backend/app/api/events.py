@@ -18,7 +18,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from watchfiles import awatch
 
 from app.core.security import decode_access_token
-from app.settings import settings
+from app.config import settings
 
 router = APIRouter(tags=["events"])
 
@@ -27,7 +27,7 @@ def _is_authed(token: str | None) -> bool:
     if not token:
         return False
     try:
-        payload = decode_access_token(token, settings.jwt_secret)
+        payload = decode_access_token(token, settings.jwt_secret, settings.jwt_alg)
         return payload.get("sub") == settings.username
     except Exception:
         return False

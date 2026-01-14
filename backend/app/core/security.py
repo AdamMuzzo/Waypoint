@@ -42,20 +42,21 @@ def make_refresh_token() -> str:
     # Generate a URL-safe random refresh token (not a JWT)
     return base64.urlsafe_b64encode(os.urandom(32)).decode("utf-8").rstrip("=")
 
-def create_access_token(subject: str, secret: str, ttl_minutes: int) -> str:
-     """
+def create_access_token(subject: str, secret: str, ttl_minutes: int, alg: str) -> str:
+    """
     Create a signed JWT access token.
     subject: who the token is for (your username)
     ttl_minutes: how long the token is valid
     """
-     now = datetime.now(timezone.utc)
-     payload: Dict[str, Any] = {
-         "sub": subject,
-         "iat": int(now.timestamp()),
-         "exp": int((now + timedelta(minutes=ttl_minutes)).timestamp()),
-     }
-     return jwt.encode(payload, secret, algorithm="HS256")
+    now = datetime.now(timezone.utc)
+    payload: Dict[str, Any] = {
+        "sub": subject,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=ttl_minutes)).timestamp()),
+    }
+    return jwt.encode(payload, secret, algorithm=alg)
 
-def decode_access_token(token: str, secret: str) -> Dict[str, Any]:
+
+def decode_access_token(token: str, secret: str, alg: str) -> Dict[str, Any]:
     # Decode/verify a JWT access token. Raises if invalid/expired
-    return jwt.decode(token, secret, algorithms=["HS256"])
+    return jwt.decode(token, secret, algorithms=[alg])

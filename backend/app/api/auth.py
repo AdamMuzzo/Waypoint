@@ -14,7 +14,6 @@ Persistence:
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -27,12 +26,12 @@ from app.core.security import (
     hash_value,
     verify_hash,
 )
-from app.settings import settings
+from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-STATE_DIR = Path(os.getenv("WAYPOINT_STATE_DIR", ".waypoint_state")).resolve()
-STATE_FILE = STATE_DIR / "refresh.json"
+STATE_DIR = settings.state_dir
+STATE_FILE = settings.state_dir / "refresh.json"
 
 _refresh_hash: str | None = None
 
@@ -84,6 +83,7 @@ def login(data: LoginIn):
         subject=settings.username,
         secret=settings.jwt_secret,
         ttl_minutes=settings.access_ttl_min,
+        alg=settings.jwt_alg,
     )
 
     refresh = make_refresh_token()
@@ -113,6 +113,7 @@ def refresh(data: RefreshIn):
         subject=settings.username,
         secret=settings.jwt_secret,
         ttl_minutes=settings.access_ttl_min,
+        alg=settings.jwt_alg,
     )
 
     new_refresh = make_refresh_token()

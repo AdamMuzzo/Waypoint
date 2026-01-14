@@ -1,2 +1,8 @@
 .venv/
 backend/.venv/
+backend/logs/
+.waypoint_state/
+.env
+.env.local
+backend/scripts/tools/
+scripts/tools/

@@ -10,7 +10,7 @@ Key responsibilities
 --------------------
 1) Build the FastAPI app (title/version)
 2) Run startup initialization:
-   - ensure the configured sandbox folder (WAYPOINT_REMOTE_ROOT) exists
+   - ensure the configured sandbox folder (WAYPOINT_ROOT) exists
 3) Include the master API router (app/api/router.py)
 
 How it is launched
@@ -28,18 +28,14 @@ Notes
 from fastapi import FastAPI
 
 from app.api.router import api_router
-from app.settings import settings
-
-import os
+from app.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Waypoint", version="0.1.0")
 
-allowed = os.getenv("WAYPOINT_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in allowed if o.strip()],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

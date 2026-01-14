@@ -27,7 +27,7 @@ from starlette.responses import FileResponse
 from app.core.etag import compute_etag
 from app.core.paths import safe_path
 from app.deps import require_auth
-from app.settings import settings
+from app.config import settings
 
 router = APIRouter(prefix="/fs", tags=["fs"])
 
