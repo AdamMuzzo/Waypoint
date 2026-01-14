@@ -25,7 +25,7 @@ export default function LoginPage() {
 
     return (
         <div className="page">
-            <div className="card">
+            <div className="card login-card">
                 <h1>Waypoint</h1>
                 <p className="muted">Sign in to your home server.</p>
 
