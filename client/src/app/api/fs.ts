@@ -53,9 +53,12 @@ export async function upload(path: string, file: File, overwrite = false, ifMatc
     if (!res.ok) throw new Error(await res.text());
 }
 
-export async function download(path: string): Promise<Blob> {
+export async function download(path: string, signal?: AbortSignal): Promise<Blob> {
     const q = new URLSearchParams({ path });
-    const res = await apiFetch(`/fs/download?${q.toString()}`);
+    const res = await apiFetch(`/fs/download?${q.toString()}`, {
+        method: "GET",
+        signal,
+    });
     if (!res.ok) throw new Error(await res.text());
     return await res.blob();
 }

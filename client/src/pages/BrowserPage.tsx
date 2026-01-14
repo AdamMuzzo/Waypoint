@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as fs from "../app/api/fs";
 import * as auth from "../app/api/auth";
 import { useAuth } from "../state/AuthContext";
+import { connectEvents } from "../app/api/ws";
 
 function joinPath(base: string, name: string) {
     if (!base) return name;
@@ -34,6 +35,22 @@ export default function BrowserPage() {
     }
 
     useEffect(() => { refresh(); }, [path]);
+
+    // NEW: listen for server-side filesystem changes and auto-refresh
+    useEffect(() => {
+        const conn = connectEvents((paths) => {
+            const prefix = path ? `${path.replace(/\/+$/, "")}/` : "";
+
+            const shouldRefresh = paths.some((p) => {
+                if (!p) return true;
+                if (!path) return !p.includes("/") || p.startsWith(prefix);
+                return p === path || p.startsWith(prefix);
+            });
+            if (shouldRefresh) refresh();
+        });
+        return () => conn.close();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [path]);
 
     async function onUpload(file: File) {
         const dest = joinPath(path, file.name);
